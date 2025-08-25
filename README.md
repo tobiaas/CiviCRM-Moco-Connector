@@ -61,10 +61,5 @@ Der Tab zeigt folgende Informationen:
 - cURL-Unterstützung
 - Gültiger MOCO-Account mit API-Zugang
 
-## Support
 
-Bei Fragen oder Problemen wenden Sie sich an: support@example.org
 
-## Lizenz
-
-AGPL-3.0 License
