@@ -1,0 +1,9 @@
+{
+  "name": "your-org/civicrm-moco-integration",
+  "description": "CiviCRM MOCO Integration",
+  "type": "civicrm-ext",
+  "license": "AGPL-3.0",
+  "require": {
+    "php": ">=7.4"
+  }
+}

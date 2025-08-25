@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<extension key="civicrm_moco_integration" type="module">
+  <file>civicrm_moco_integration</file>
+  <name>MOCO Integration for CiviCRM</name>
+  <description>Integration between CiviCRM and MOCO for displaying company data, projects and revenue</description>
+  <license>AGPL-3.0</license>
+  <maintainer>
+    <author>Your Organization</author>
+    <email>support@example.org</email>
+  </maintainer>
+  <releaseDate>2025-01-01</releaseDate>
+  <version>2.0.0</version>
+  <develStage>stable</develStage>
+  <compatibility>
+    <ver>5.50</ver>
+  </compatibility>
+  <civix>
+    <namespace>CRM/MocoIntegration</namespace>
+  </civix>
+</extension>

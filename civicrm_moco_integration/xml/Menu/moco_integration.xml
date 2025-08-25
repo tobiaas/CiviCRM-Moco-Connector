@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<menu>
+  <item>
+    <path>civicrm/admin/moco</path>
+    <page_callback>CRM_MocoIntegration_Form_Settings</page_callback>
+    <title>MOCO Integration Settings</title>
+    <access_arguments>administer CiviCRM</access_arguments>
+    <adminGroup>System Settings</adminGroup>
+  </item>
+  <item>
+    <path>civicrm/contact/view/moco</path>
+    <page_callback>CRM_MocoIntegration_Page_MocoTab</page_callback>
+    <title>MOCO Data</title>
+    <access_arguments>access CiviCRM</access_arguments>
+  </item>
+</menu>
