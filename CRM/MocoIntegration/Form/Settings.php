@@ -1,6 +1,5 @@
 <?php
 class CRM_MocoIntegration_Form_Settings extends CRM_Admin_Form_Settings {
-  
   protected $_settings = [
     'moco_integration_api_key' => CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME,
     'moco_integration_domain' => CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME,
@@ -9,77 +8,55 @@ class CRM_MocoIntegration_Form_Settings extends CRM_Admin_Form_Settings {
     'moco_integration_cache_enabled' => CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME,
     'moco_integration_cache_ttl' => CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME,
   ];
-  
-  public function buildQuickForm() {
-    $this->add('text', 'moco_integration_api_key', 
-      ts('MOCO API Key'), 
-      ['class' => 'huge'],
-      TRUE
-    );
+
+  private function getMocoFields() {
+    $fields = [
+      'id' => ts('Contact ID'),
+      'external_identifier' => ts('External Identifier'),
+      'organization_name' => ts('Organization Name'),
+    ];
     
-    $this->add('text', 'moco_integration_domain',
-      ts('MOCO Domain'),
-      ['class' => 'medium'],
-      TRUE
-    );
-    
-    $customFields = $this->getCustomFields();
-    $this->add('select', 'moco_integration_field_name',
-      ts('Custom Field for MOCO ID'),
-      ['' => ts('- select -')] + $customFields,
-      TRUE
-    );
-    
-    $this->add('select', 'moco_integration_id_type',
-      ts('MOCO ID Type'),
-      [
-        'company' => ts('Company ID'),
-        'contact' => ts('Contact ID')
-      ],
-      TRUE
-    );
-    
-    $this->add('checkbox', 'moco_integration_cache_enabled',
-      ts('Enable Caching')
-    );
-    
-    $this->add('text', 'moco_integration_cache_ttl',
-      ts('Cache TTL (seconds)'),
-      ['class' => 'small']
-    );
-    
-    $this->addButtons([
-      ['type' => 'submit', 'name' => ts('Save'), 'isDefault' => TRUE],
-      ['type' => 'cancel', 'name' => ts('Cancel')]
-    ]);
-    
-    parent::buildQuickForm();
-  }
-  
-  private function getCustomFields() {
-    $fields = [];
-    
-    $result = civicrm_api3('CustomField', 'get', [
-      'extends' => ['IN' => ['Contact', 'Individual', 'Organization']],
-      'data_type' => ['IN' => ['String', 'Int']],
-      'return' => ['id', 'label'],
-      'options' => ['limit' => 0]
-    ]);
-    
-    foreach ($result['values'] as $field) {
-      $fields["custom_{$field['id']}"] = $field['label'];
+    try {
+      $result = civicrm_api3('CustomField', 'get', [
+        'extends' => ['IN' => ['Contact', 'Individual', 'Organization']],
+        'data_type' => ['IN' => ['String', 'Int']],
+        'return' => ['id', 'label'],
+        'options' => ['limit' => 0]
+      ]);
+      foreach ($result['values'] as $field) {
+        $fields["custom_{$field['id']}"] = $field['label'];
+      }
+    } catch (Exception $e) {
+      CRM_Core_Error::debug_log_message('MOCO Integration: Error loading custom fields - ' . $e->getMessage());
     }
     
     return $fields;
   }
-  
+
+  public function buildQuickForm() {
+    $fields = $this->getMocoFields();
+    $this->add('text', 'moco_integration_api_key', ts('MOCO API Key'), ['class' => 'huge'], TRUE);
+    $this->add('text', 'moco_integration_domain', ts('MOCO Domain'), ['class' => 'medium'], TRUE);
+    $this->add('select', 'moco_integration_field_name', ts('Feld für MOCO-ID'), ['' => ts('- Feld auswählen -')] + $fields, TRUE);
+    $this->add('select', 'moco_integration_id_type', ts('MOCO ID Type'), [
+      'company' => ts('Company ID'),
+      'contact' => ts('Contact ID')
+    ], TRUE);
+    $this->add('checkbox', 'moco_integration_cache_enabled', ts('Enable Caching'));
+    $this->add('text', 'moco_integration_cache_ttl', ts('Cache TTL (seconds)'), ['class' => 'small']);
+    $this->addButtons([
+      ['type' => 'submit', 'name' => ts('Save'), 'isDefault' => TRUE],
+      ['type' => 'cancel', 'name' => ts('Cancel')]
+    ]);
+    parent::buildQuickForm();
+  }
+
   public function postProcess() {
     $values = $this->exportValues();
     
-    // Test connection
+    // Test MOCO API connection if credentials provided
     if ($values['moco_integration_api_key'] && $values['moco_integration_domain']) {
       $url = "https://{$values['moco_integration_domain']}.mocoapp.com/api/v1/session";
-      
       $ch = curl_init();
       curl_setopt_array($ch, [
         CURLOPT_URL => $url,
@@ -87,29 +64,29 @@ class CRM_MocoIntegration_Form_Settings extends CRM_Admin_Form_Settings {
         CURLOPT_HTTPHEADER => [
           'Authorization: Token token=' . $values['moco_integration_api_key']
         ],
-        CURLOPT_TIMEOUT => 10
+        CURLOPT_TIMEOUT => 10,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_FOLLOWLOCATION => false
       ]);
       
       $response = curl_exec($ch);
       $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+      $curlError = curl_error($ch);
       curl_close($ch);
       
+      if ($curlError) {
+        CRM_Core_Session::setStatus(ts('MOCO connection failed: %1', [1 => $curlError]), ts('Error'), 'error');
+        return;
+      }
+      
       if ($httpCode !== 200) {
-        CRM_Core_Session::setStatus(
-          ts('MOCO connection failed'),
-          ts('Error'),
-          'error'
-        );
+        $errorMsg = ts('MOCO API returned HTTP %1. Please check your API key and domain.', [1 => $httpCode]);
+        CRM_Core_Session::setStatus($errorMsg, ts('Error'), 'error');
         return;
       }
     }
     
     parent::postProcess();
-    
-    CRM_Core_Session::setStatus(
-      ts('Settings saved'),
-      ts('Success'),
-      'success'
-    );
+    CRM_Core_Session::setStatus(ts('MOCO Integration settings saved successfully'), ts('Success'), 'success');
   }
 }

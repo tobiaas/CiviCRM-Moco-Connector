@@ -14,7 +14,6 @@ function civicrm_moco_integration_civicrm_config(&$config) {
  */
 function civicrm_moco_integration_civicrm_install() {
   _civicrm_moco_integration_civix_civicrm_install();
-  
   // Create cache table for MOCO data
   $sql = "
     CREATE TABLE IF NOT EXISTS `civicrm_moco_cache` (
@@ -44,16 +43,16 @@ function civicrm_moco_integration_civicrm_enable() {
 function civicrm_moco_integration_civicrm_tabset($tabsetName, &$tabs, $context) {
   if ($tabsetName == 'civicrm/contact/view') {
     $contactID = $context['contact_id'] ?? NULL;
-    
+
     if ($contactID) {
       $mocoId = _civicrm_moco_integration_get_moco_id($contactID);
-      
+
       if ($mocoId) {
         $url = CRM_Utils_System::url(
           'civicrm/contact/view/moco',
           "reset=1&snippet=1&force=1&cid={$contactID}"
         );
-        
+
         $tabs[] = [
           'id' => 'moco_integration',
           'url' => $url,
@@ -67,24 +66,30 @@ function civicrm_moco_integration_civicrm_tabset($tabsetName, &$tabs, $context) 
 }
 
 /**
- * Get MOCO ID from custom field
+ * Get MOCO ID from selected field (custom or standard)
  */
 function _civicrm_moco_integration_get_moco_id($contactId) {
   try {
-    $customFieldName = Civi::settings()->get('moco_integration_field_name');
-    
-    if (!$customFieldName) {
+    $fieldName = Civi::settings()->get('moco_integration_field_name');
+    if (!$fieldName) {
       return NULL;
     }
-    
-    $result = civicrm_api3('Contact', 'get', [
-      'id' => $contactId,
-      'return' => [$customFieldName]
-    ]);
-    
-    return $result['values'][$contactId][$customFieldName] ?? NULL;
-  }
-  catch (Exception $e) {
+    if (strpos($fieldName, 'custom_') === 0) {
+      // Custom Field
+      $result = civicrm_api3('Contact', 'get', [
+        'id' => $contactId,
+        'return' => [$fieldName]
+      ]);
+      return $result['values'][$contactId][$fieldName] ?? NULL;
+    } else {
+      // Core (standard) field
+      $result = civicrm_api3('Contact', 'getsingle', [
+        'id' => $contactId,
+        'return' => [$fieldName]
+      ]);
+      return $result[$fieldName] ?? NULL;
+    }
+  } catch (Exception $e) {
     CRM_Core_Error::debug_log_message('MOCO Integration: ' . $e->getMessage());
     return NULL;
   }
